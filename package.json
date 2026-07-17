@@ -1,0 +1,21 @@
+{
+  "name": "agent-restore",
+  "version": "0.1.0",
+  "description": "Reopen your most recent Claude Code conversations after a reboot, each in its own Windows Terminal tab, auto-resumed in the correct directory.",
+  "type": "module",
+  "bin": {
+    "agent-restore": "src/cli.mjs"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node src/cli.mjs",
+    "list": "node src/cli.mjs --list"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
