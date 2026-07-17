@@ -43,18 +43,21 @@ it in place with `node src/cli.mjs`.)
 `ars` is a short alias for `agent-restore`.
 
 ```sh
-ars              # reopen sessions active in the last day
-ars --pick       # show recents and choose which to reopen
-ars --list       # show recent sessions, open nothing
-ars --since 7    # widen the window to the last 7 days
+ars              # reopen sessions active in the last 24h
+ars --pick       # arrow-key menu to choose which to reopen
+ars --since 12h  # window as 12h, 2d, 90m, 1w (a bare number means hours)
 ars --all-time   # no age cutoff
 ars --limit 4    # cap how many directories to reopen (default 8)
+ars --list       # show recent sessions, open nothing
 ars --dry-run    # print what would open, open nothing
 ```
 
-By default it reopens only the last day of work (per directory), so a reboot
-does not resurrect stale conversations. Use `ars --list` to preview, or
-`ars --pick` to choose interactively.
+By default it reopens only the last 24 hours of work (per directory), so a
+reboot does not resurrect stale conversations. Use `ars --list` to preview, or
+`ars --pick` for an arrow-key menu (Up/Down move, Space toggles, A all, Enter
+confirms, Esc cancels).
+
+The `--since` window is flexible: `12h`, `36` (hours), `2d`, `90m`, `1w`.
 
 ## Notes
 

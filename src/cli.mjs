@@ -23,10 +23,20 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { scanSessions } from "./scan.mjs";
+import { parseDuration, formatDuration } from "./duration.mjs";
+import { multiSelect } from "./picker.mjs";
 
 function parseArgs(argv) {
-  // Default: reopen sessions active in the last 1 day, up to 8 directories.
-  const opts = { limit: 8, sinceDays: 1, dryRun: false, list: false, pick: false, debug: false };
+  // Default: reopen sessions active in the last 24 hours, up to 8 directories.
+  const opts = {
+    limit: 8,
+    sinceMs: 24 * 60 * 60 * 1000,
+    dryRun: false,
+    list: false,
+    pick: false,
+    debug: false,
+    badSince: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--list" || a === "-l") opts.list = true;
@@ -34,8 +44,12 @@ function parseArgs(argv) {
     else if (a === "--dry-run" || a === "-n") opts.dryRun = true;
     else if (a === "--debug") opts.debug = true;
     else if (a === "--limit") opts.limit = parseInt(argv[++i], 10) || opts.limit;
-    else if (a === "--since") opts.sinceDays = parseFloat(argv[++i]) || opts.sinceDays;
-    else if (a === "--all-time") opts.sinceDays = Infinity;
+    else if (a === "--since") {
+      const raw = argv[++i];
+      const ms = parseDuration(raw);
+      if (ms == null) opts.badSince = raw;
+      else opts.sinceMs = ms;
+    } else if (a === "--all-time") opts.sinceMs = Infinity;
     else if (a === "--help" || a === "-h") opts.help = true;
   }
   return opts;
@@ -45,9 +59,9 @@ function printHelp() {
   console.log(`agent-restore - reopen recent Claude Code conversations
 
 Usage:
-  agent-restore                 Reopen sessions active in the last day
-  agent-restore --pick          Show recents and choose which to reopen
-  agent-restore --since N       Change the window to the last N days
+  agent-restore                 Reopen sessions active in the last 24h
+  agent-restore --pick          Arrow-key menu to choose which to reopen
+  agent-restore --since <dur>   Window like 12h, 2d, 90m, 1w (bare number = hours)
   agent-restore --all-time      No age cutoff (every directory)
   agent-restore --limit N       Cap how many directories to restore (default 8)
   agent-restore --list          Show recent sessions, do not open anything
@@ -174,43 +188,34 @@ function launch(sessions, debug) {
   }
 }
 
-// Interactive picker: number the sessions and let the user choose which to
-// reopen. Accepts a space/comma list of numbers, "a" for all, or blank/"q" to
-// cancel. Returns the chosen sessions (possibly empty).
+// Arrow-key picker: present the sessions in a colored multi-select menu and
+// return the chosen ones (possibly empty if cancelled).
 async function pick(sessions) {
-  console.log("Recent sessions:\n");
-  sessions.forEach((s, i) => {
-    console.log(`  [${i + 1}] ${relTime(s.mtimeMs).padEnd(8)}  ${s.cwd}`);
-  });
-  console.log("\nEnter numbers to reopen (e.g. 1 3 4), 'a' for all, or Enter to cancel.");
-
-  const { createInterface } = await import("node:readline/promises");
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = (await rl.question("> ")).trim();
-  rl.close();
-
-  if (answer === "" || answer.toLowerCase() === "q") return [];
-  if (answer.toLowerCase() === "a") return sessions;
-
-  const chosen = [];
-  for (const tok of answer.split(/[\s,]+/).filter(Boolean)) {
-    const n = parseInt(tok, 10);
-    if (n >= 1 && n <= sessions.length) chosen.push(sessions[n - 1]);
-  }
-  // De-dupe while preserving input order.
-  return [...new Set(chosen)];
+  const items = sessions.map((s) => ({
+    label: shortTitle(s.cwd),
+    sublabel: `${relTime(s.mtimeMs)}  ${s.cwd}`,
+  }));
+  const indices = await multiSelect(items, { title: "Reopen which sessions?" });
+  return indices.map((i) => sessions[i]);
 }
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) return printHelp();
 
-  const sessions = scanSessions({ limit: opts.limit, sinceDays: opts.sinceDays });
+  if (opts.badSince != null) {
+    console.error(
+      `Could not read --since "${opts.badSince}". Use forms like 12h, 2d, 90m, 1w (a bare number means hours).`
+    );
+    process.exit(1);
+  }
+
+  const sessions = scanSessions({ limit: opts.limit, sinceMs: opts.sinceMs });
 
   if (sessions.length === 0) {
     const window =
-      opts.sinceDays === Infinity ? "" : ` active in the last ${opts.sinceDays} day(s)`;
-    console.log(`No Claude sessions found${window}. Try --since 7 or --all-time.`);
+      opts.sinceMs === Infinity ? "" : ` active in the last ${formatDuration(opts.sinceMs)}`;
+    console.log(`No Claude sessions found${window}. Try --since 7d or --all-time.`);
     return;
   }
 

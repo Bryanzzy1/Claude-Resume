@@ -30,7 +30,8 @@ makeSession("projC", "stale-c", "C:\\work\\C", 10); // outside 3-day window
 
 const { scanSessions } = await import("../src/scan.mjs");
 
-const recent = scanSessions({ sinceDays: 3 });
+const DAY = 24 * 60 * 60 * 1000;
+const recent = scanSessions({ sinceMs: 3 * DAY });
 const cwds = recent.map((s) => s.cwd);
 console.log("within 3 days:", cwds);
 
@@ -38,7 +39,7 @@ assert.strictEqual(recent.length, 2, "only A and B are within 3 days");
 assert.deepStrictEqual(cwds, ["C:\\work\\A", "C:\\work\\B"], "sorted newest-first, C dropped");
 assert.strictEqual(recent[0].sessionId, "new-session", "dedup keeps the newest session per dir");
 
-const all = scanSessions({ sinceDays: Infinity });
+const all = scanSessions({ sinceMs: Infinity });
 assert.strictEqual(all.length, 3, "all-time includes the stale dir");
 
 rmSync(fakeHome, { recursive: true, force: true });
