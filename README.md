@@ -35,23 +35,26 @@ From this folder:
 npm install -g .
 ```
 
-That puts `agent-restore` on your PATH. (Or run it in place with
-`node src/cli.mjs`.)
+That puts both `agent-restore` and the short alias `ars` on your PATH. (Or run
+it in place with `node src/cli.mjs`.)
 
 ## Usage
 
+`ars` is a short alias for `agent-restore`.
+
 ```sh
-agent-restore              # reopen sessions active in the last 3 days
-agent-restore --since 7    # widen the window to the last 7 days
-agent-restore --all-time   # no age cutoff
-agent-restore --limit 4    # cap how many directories to reopen (default 8)
-agent-restore --list       # show recent sessions, open nothing
-agent-restore --dry-run    # print what would open, open nothing
+ars              # reopen sessions active in the last day
+ars --pick       # show recents and choose which to reopen
+ars --list       # show recent sessions, open nothing
+ars --since 7    # widen the window to the last 7 days
+ars --all-time   # no age cutoff
+ars --limit 4    # cap how many directories to reopen (default 8)
+ars --dry-run    # print what would open, open nothing
 ```
 
-By default it reopens only the last 3 days of work (per directory), so a reboot
-does not resurrect stale conversations. Run `agent-restore --list` first to see
-exactly what it will reopen.
+By default it reopens only the last day of work (per directory), so a reboot
+does not resurrect stale conversations. Use `ars --list` to preview, or
+`ars --pick` to choose interactively.
 
 ## Notes
 

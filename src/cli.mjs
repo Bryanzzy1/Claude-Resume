@@ -22,15 +22,15 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
 import { scanSessions } from "./scan.mjs";
 
 function parseArgs(argv) {
-  // Default: reopen sessions active in the last 3 days, up to 8 directories.
-  const opts = { limit: 8, sinceDays: 3, dryRun: false, list: false, debug: false };
+  // Default: reopen sessions active in the last 1 day, up to 8 directories.
+  const opts = { limit: 8, sinceDays: 1, dryRun: false, list: false, pick: false, debug: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--list" || a === "-l") opts.list = true;
+    else if (a === "--pick" || a === "-p") opts.pick = true;
     else if (a === "--dry-run" || a === "-n") opts.dryRun = true;
     else if (a === "--debug") opts.debug = true;
     else if (a === "--limit") opts.limit = parseInt(argv[++i], 10) || opts.limit;
@@ -45,7 +45,8 @@ function printHelp() {
   console.log(`agent-restore - reopen recent Claude Code conversations
 
 Usage:
-  agent-restore                 Reopen sessions active in the last 3 days
+  agent-restore                 Reopen sessions active in the last day
+  agent-restore --pick          Show recents and choose which to reopen
   agent-restore --since N       Change the window to the last N days
   agent-restore --all-time      No age cutoff (every directory)
   agent-restore --limit N       Cap how many directories to restore (default 8)
@@ -145,7 +146,62 @@ export function writeMaster(dir, wrappers) {
   return file;
 }
 
-function main() {
+// Open the given sessions, one Windows Terminal tab each, auto-resumed.
+function launch(sessions, debug) {
+  const claude = resolveClaude();
+  const wrapDir = join(tmpdir(), "agent-restore");
+  mkdirSync(wrapDir, { recursive: true });
+
+  const wrappers = sessions.map((s, i) => ({
+    path: writeWrapper(wrapDir, i, claude, s, debug),
+    title: shortTitle(s.cwd),
+  }));
+
+  const master = writeMaster(wrapDir, wrappers);
+
+  console.log(`Reopening ${sessions.length} session(s) in Windows Terminal...`);
+  // Clean argv, shell:false: nothing re-parses the master path, and the master
+  // itself holds every real path as literal file text.
+  const comspec = process.env.ComSpec || "C:\\Windows\\System32\\cmd.exe";
+  const res = spawnSync(comspec, ["/c", master], { stdio: "inherit", shell: false });
+  if (res.error || res.status !== 0) {
+    console.error(
+      "Failed to launch Windows Terminal:",
+      res.error ? res.error.message : "exit code " + res.status
+    );
+    console.error(`You can inspect/run the generated launcher directly:\n  ${master}`);
+    process.exit(1);
+  }
+}
+
+// Interactive picker: number the sessions and let the user choose which to
+// reopen. Accepts a space/comma list of numbers, "a" for all, or blank/"q" to
+// cancel. Returns the chosen sessions (possibly empty).
+async function pick(sessions) {
+  console.log("Recent sessions:\n");
+  sessions.forEach((s, i) => {
+    console.log(`  [${i + 1}] ${relTime(s.mtimeMs).padEnd(8)}  ${s.cwd}`);
+  });
+  console.log("\nEnter numbers to reopen (e.g. 1 3 4), 'a' for all, or Enter to cancel.");
+
+  const { createInterface } = await import("node:readline/promises");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = (await rl.question("> ")).trim();
+  rl.close();
+
+  if (answer === "" || answer.toLowerCase() === "q") return [];
+  if (answer.toLowerCase() === "a") return sessions;
+
+  const chosen = [];
+  for (const tok of answer.split(/[\s,]+/).filter(Boolean)) {
+    const n = parseInt(tok, 10);
+    if (n >= 1 && n <= sessions.length) chosen.push(sessions[n - 1]);
+  }
+  // De-dupe while preserving input order.
+  return [...new Set(chosen)];
+}
+
+async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) return printHelp();
 
@@ -168,34 +224,35 @@ function main() {
     return;
   }
 
-  const claude = resolveClaude();
-
-  const wrapDir = join(tmpdir(), "agent-restore");
-  mkdirSync(wrapDir, { recursive: true });
-
-  const wrappers = sessions.map((s, i) => ({
-    path: writeWrapper(wrapDir, i, claude, s, opts.debug),
-    title: shortTitle(s.cwd),
-  }));
-
-  const master = writeMaster(wrapDir, wrappers);
-
-  console.log(`Reopening ${sessions.length} session(s) in Windows Terminal...`);
-  // Clean argv, shell:false: nothing re-parses the master path, and the master
-  // itself holds every real path as literal file text.
-  const comspec = process.env.ComSpec || "C:\\Windows\\System32\\cmd.exe";
-  const res = spawnSync(comspec, ["/c", master], { stdio: "inherit", shell: false });
-  if (res.error || res.status !== 0) {
-    console.error(
-      "Failed to launch Windows Terminal:",
-      res.error ? res.error.message : "exit code " + res.status
-    );
-    console.error(`You can inspect/run the generated launcher directly:\n  ${master}`);
-    process.exit(1);
+  if (opts.pick) {
+    const chosen = await pick(sessions);
+    if (chosen.length === 0) {
+      console.log("Nothing selected.");
+      return;
+    }
+    return launch(chosen, opts.debug);
   }
+
+  launch(sessions, opts.debug);
 }
 
-// Only run as a CLI, not when imported by tests.
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main();
+// Run as a CLI unless imported by a test. A full-path compare of
+// import.meta.url against process.argv[1] is unreliable: `npm install -g .`
+// symlinks the global package back to this source, so the two paths differ and
+// main() would silently never run. Instead we detect by entry-file basename:
+// when node is launched with cli.mjs as the entry (directly or via the npm
+// shim), run; when a test imports this module, its own file is the entry, so
+// we skip. AGENT_RESTORE_NO_MAIN lets a test force-skip if ever needed.
+function isMain() {
+  if (process.env.AGENT_RESTORE_NO_MAIN) return false;
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return /(^|[\\/])cli\.mjs$/i.test(entry);
+}
+
+if (isMain()) {
+  main().catch((e) => {
+    console.error("agent-restore error:", e.message);
+    process.exit(1);
+  });
 }

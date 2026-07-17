@@ -4,7 +4,8 @@
   "description": "Reopen your most recent Claude Code conversations after a reboot, each in its own Windows Terminal tab, auto-resumed in the correct directory.",
   "type": "module",
   "bin": {
-    "agent-restore": "src/cli.mjs"
+    "agent-restore": "src/cli.mjs",
+    "ars": "src/cli.mjs"
   },
   "files": [
     "src",
