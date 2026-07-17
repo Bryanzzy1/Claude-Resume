@@ -82,7 +82,7 @@ Usage:
   ars --dry-run       Print what would open, open nothing
   ars --debug         Keep each tab open with a pause if resume fails
 
-Bare 'ars' looks back 24h; --pick and --list look back a week so you have more
+Bare 'ars' looks back 24h. --pick and --list look back a week so you have more
 to choose from. --since or --all-time overrides either.
 
 Each restored session opens as a Windows Terminal tab that runs
