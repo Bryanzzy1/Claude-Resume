@@ -1,11 +1,15 @@
 {
-  "name": "agent-restore",
+  "name": "claude-resume",
   "version": "0.1.0",
   "description": "Reopen your most recent Claude Code conversations after a reboot, each in its own Windows Terminal tab, auto-resumed in the correct directory.",
   "type": "module",
   "bin": {
-    "agent-restore": "src/cli.mjs",
+    "claude-resume": "src/cli.mjs",
     "ars": "src/cli.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bryanzzy1/Claude-Resume.git"
   },
   "files": [
     "src",

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// agent-restore: reopen recent Claude Code conversations after a reboot.
+// claude-resume (ars): reopen recent Claude Code conversations after a reboot.
 //
 // Sessions are read live from ~/.claude/projects (Claude keeps them current),
 // so there is nothing to save beforehand. We take the most recent session per
@@ -56,17 +56,17 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`agent-restore - reopen recent Claude Code conversations
+  console.log(`claude-resume (ars) - reopen recent Claude Code conversations
 
 Usage:
-  agent-restore                 Reopen sessions active in the last 24h
-  agent-restore --pick          Arrow-key menu to choose which to reopen
-  agent-restore --since <dur>   Window like 12h, 2d, 90m, 1w (bare number = hours)
-  agent-restore --all-time      No age cutoff (every directory)
-  agent-restore --limit N       Cap how many directories to restore (default 8)
-  agent-restore --list          Show recent sessions, do not open anything
-  agent-restore --dry-run       Print what would open, open nothing
-  agent-restore --debug         Keep each tab open with a pause if resume fails
+  ars                 Reopen sessions active in the last 24h
+  ars --pick          Arrow-key menu to choose which to reopen
+  ars --since <dur>   Window like 12h, 2d, 90m, 1w (bare number = hours)
+  ars --all-time      No age cutoff (every directory)
+  ars --limit N       Cap how many directories to restore (default 8)
+  ars --list          Show recent sessions, do not open anything
+  ars --dry-run       Print what would open, open nothing
+  ars --debug         Keep each tab open with a pause if resume fails
 
 Each restored session opens as a Windows Terminal tab that runs
 'claude --resume <session-id>' started in that session's own directory.`);
@@ -257,7 +257,7 @@ function isMain() {
 
 if (isMain()) {
   main().catch((e) => {
-    console.error("agent-restore error:", e.message);
+    console.error("claude-resume error:", e.message);
     process.exit(1);
   });
 }

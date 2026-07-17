@@ -1,33 +1,38 @@
-# agent-restore
+<h1 align="center">claude-resume</h1>
 
-Reopen your most recent Claude Code conversations after a reboot. Each session
-reopens in its own Windows Terminal tab, started in the correct directory, and
-auto-resumed with `claude --resume`.
+<p align="center">
+  <a href="#"><img alt="Platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" /></a>
+  <a href="#"><img alt="Node" src="https://img.shields.io/badge/node-%3E%3D18-green?style=flat-square" /></a>
+  <a href="#"><img alt="License" src="https://img.shields.io/badge/license-MIT-black?style=flat-square" /></a>
+</p>
 
-## Why
+<h3 align="center">Reopen your Claude Code conversations after a reboot.</h3>
 
-Restarting Windows kills all your terminal windows and the running agents in
-them. Remembering which folders you were in and which conversation each tab held
-is painful. This tool rebuilds that for you in one command.
+Restarting Windows kills every terminal window and the agents running in them. Remembering which folders you were in and which conversation each tab held is painful.
 
-## How it works
+`claude-resume` (command `ars`) rebuilds that for you in one command. It reads the sessions Claude Code already keeps on disk, and reopens each recent one as a Windows Terminal tab, started in the right folder and auto-resumed.
 
-Claude Code already writes every conversation to disk under
-`~/.claude/projects/<encoded-dir>/<session-id>.jsonl` and updates it on every
-message. So your sessions are always saved, with no separate save step and
-nothing to run before a restart.
+- **Nothing to save.** Claude writes every conversation to disk on each message, so there is no capture step to run before a restart and nothing to miss.
+- **Right folder, right chat.** Each tab opens in the session's own directory and runs `claude --resume` for that exact conversation.
+- **Recent only.** By default it reopens the last 24 hours of work, one conversation per directory, so a reboot does not resurrect stale chats.
+- **Pick when you want.** An arrow-key menu lets you choose which sessions to reopen.
 
-`agent-restore` reads that store, picks the **most recent session per
-directory** (deduped, no repeats), and reopens each as a Windows Terminal tab
-running `claude --resume <session-id>` in that session's own folder.
+## Quick Start
 
-## Requirements
+```sh
+$ ars                          # reopen sessions active in the last 24h
+Reopening 3 session(s) in Windows Terminal...
+```
 
-- Node.js 18+
-- Windows Terminal (`wt`)
-- Claude Code (`claude` on PATH)
+```sh
+$ ars --pick                   # choose which to reopen from a menu
+$ ars --since 12h              # widen or narrow the window (12h, 2d, 90m, 1w)
+$ ars --list                   # preview recents, open nothing
+```
 
 ## Install
+
+Requires Node.js 18+, Windows Terminal (`wt`), and Claude Code (`claude` on PATH).
 
 From this folder:
 
@@ -35,12 +40,15 @@ From this folder:
 npm install -g .
 ```
 
-That puts both `agent-restore` and the short alias `ars` on your PATH. (Or run
-it in place with `node src/cli.mjs`.)
+That puts both `claude-resume` and the short alias `ars` on your PATH. (Or run it in place with `node src/cli.mjs`.)
+
+If PowerShell blocks the command with an execution-policy error, allow local scripts once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
 
 ## Usage
-
-`ars` is a short alias for `agent-restore`.
 
 ```sh
 ars              # reopen sessions active in the last 24h
@@ -50,22 +58,24 @@ ars --all-time   # no age cutoff
 ars --limit 4    # cap how many directories to reopen (default 8)
 ars --list       # show recent sessions, open nothing
 ars --dry-run    # print what would open, open nothing
+ars --debug      # keep each tab open with a pause if resume fails
 ```
 
-By default it reopens only the last 24 hours of work (per directory), so a
-reboot does not resurrect stale conversations. Use `ars --list` to preview, or
-`ars --pick` for an arrow-key menu (Up/Down move, Space toggles, A all, Enter
-confirms, Esc cancels).
+In the `--pick` menu: Up/Down move, Space toggles a session, A toggles all, Enter confirms, Esc cancels.
 
-The `--since` window is flexible: `12h`, `36` (hours), `2d`, `90m`, `1w`.
+## How it works
+
+Claude Code writes every conversation to `~/.claude/projects/<encoded-dir>/<session-id>.jsonl` and appends to it on every message. Each file records its own working directory, and the filename is the session id.
+
+`claude-resume` is a reader. It scans that store, picks the most recent session per directory within your time window, then for each one writes a small wrapper `.cmd` that runs `claude --resume <id>` in the session's folder, and opens them as Windows Terminal tabs.
+
+Wrapper files hold real paths as literal text and `wt` is handed forward-slash paths, which sidesteps the backslash mangling that breaks a naive `wt ... cmd /k "C:\..."` launch.
 
 ## Notes
 
-- Only the most recent conversation per directory is restored, so you never get
-  duplicate tabs for the same folder.
-- Paths with spaces (e.g. `Analytical Modeling With AI`) are handled correctly.
-- This restores Claude Code conversations. It does not restore other terminal
-  programs you had open.
+- Restores Claude Code conversations, not other terminal programs (a dev server, a subshell, etc.).
+- One conversation per directory (the most recent). Two live chats in the same folder reopen only the newer.
+- Paths with spaces are handled correctly.
 
 ## License
 
