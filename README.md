@@ -69,6 +69,8 @@ Claude Code writes every conversation to `~/.claude/projects/<encoded-dir>/<sess
 
 `claude-resume` is a reader. It scans that store, picks the most recent session per directory within your time window, then for each one writes a small wrapper `.cmd` that runs `claude --resume <id>` in the session's folder, and opens them as Windows Terminal tabs.
 
+Sessions whose directory no longer exists are skipped, so a deleted project or a recycled worktree never reopens a dead folder.
+
 Wrapper files hold real paths as literal text and `wt` is handed forward-slash paths, which sidesteps the backslash mangling that breaks a naive `wt ... cmd /k "C:\..."` launch.
 
 ## License

@@ -3,7 +3,7 @@
 // ~/.claude/projects/<encoded-cwd>/<session-id>.jsonl and updates it on each
 // message, so this data is always current with no separate save step.
 
-import { readdirSync, statSync, readFileSync, openSync, readSync, closeSync } from "node:fs";
+import { readdirSync, statSync, openSync, readSync, closeSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -30,12 +30,24 @@ function readCwd(file) {
   }
 }
 
+// True if path exists and is a directory. Used to skip sessions whose folder is
+// gone (deleted projects, recycled treehouse worktrees), so we never try to
+// reopen a tab in a directory that no longer exists.
+function dirExists(p) {
+  try {
+    return statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 // Return one entry per directory: the most recently modified session in it.
 // Sorted newest-first. limit caps how many directories come back. sinceMs drops
 // sessions whose most recent activity is older than that many milliseconds (so
-// a reboot only reopens work you were actually in recently); pass 0/Infinity to
-// keep all ages.
-export function scanSessions({ limit = Infinity, sinceMs = Infinity } = {}) {
+// a reboot only reopens work you were actually in recently), pass 0/Infinity to
+// keep all ages. requireDir (default true) drops sessions whose recorded
+// working directory no longer exists on disk.
+export function scanSessions({ limit = Infinity, sinceMs = Infinity, requireDir = true } = {}) {
   const cutoffMs = sinceMs === Infinity || !sinceMs ? 0 : Date.now() - sinceMs;
   let projectDirs;
   try {
@@ -79,6 +91,7 @@ export function scanSessions({ limit = Infinity, sinceMs = Infinity } = {}) {
 
   return [...byCwd.values()]
     .filter((s) => s.mtimeMs >= cutoffMs)
+    .filter((s) => !requireDir || dirExists(s.cwd))
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
     .slice(0, limit);
 }
