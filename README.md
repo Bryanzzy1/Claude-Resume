@@ -6,15 +6,15 @@
   <a href="#"><img alt="License" src="https://img.shields.io/badge/license-MIT-black?style=flat-square" /></a>
 </p>
 
-<h3 align="center">Reopen your Claude Code conversations after a reboot.</h3>
+<h3 align="center">Jump back into your recent Claude Code sessions.</h3>
 
-Restarting Windows kills every terminal window and the agents running in them. Remembering which folders you were in and which conversation each tab held is painful.
+Picking up where you left off means remembering which folders you were in and which conversation each tab held. After closing tabs, switching machines, or a reboot, that context is gone.
 
-`claude-resume` (command `ars`) rebuilds that for you in one command. It reads the sessions Claude Code already keeps on disk, and reopens each recent one as a Windows Terminal tab, started in the right folder and auto-resumed.
+`claude-resume` (command `ars`) brings it back in one command. It reads the sessions Claude Code already keeps on disk, and reopens each recent one as a Windows Terminal tab, started in the right folder and auto-resumed.
 
-- **Nothing to save.** Claude writes every conversation to disk on each message, so there is no capture step to run before a restart and nothing to miss.
+- **Nothing to save.** Claude writes every conversation to disk on each message, so there is no capture step and nothing to miss.
 - **Right folder, right chat.** Each tab opens in the session's own directory and runs `claude --resume` for that exact conversation.
-- **Recent only.** By default it reopens the last 24 hours of work, one conversation per directory, so a reboot does not resurrect stale chats.
+- **Recent only.** By default it reopens the last 24 hours of work, one conversation per directory, so you do not resurrect stale chats.
 - **Pick when you want.** An arrow-key menu lets you choose which sessions to reopen.
 
 ## Quick Start

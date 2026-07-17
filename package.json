@@ -1,7 +1,7 @@
 {
   "name": "claude-resume",
   "version": "0.1.0",
-  "description": "Reopen your most recent Claude Code conversations after a reboot, each in its own Windows Terminal tab, auto-resumed in the correct directory.",
+  "description": "Quickly reopen your recent Claude Code sessions, each in its own Windows Terminal tab, auto-resumed in the correct directory.",
   "type": "module",
   "bin": {
     "claude-resume": "src/cli.mjs",

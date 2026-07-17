@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// claude-resume (ars): reopen recent Claude Code conversations after a reboot.
+// claude-resume (ars): quickly reopen your recent Claude Code sessions.
 //
 // Sessions are read live from ~/.claude/projects (Claude keeps them current),
 // so there is nothing to save beforehand. We take the most recent session per
