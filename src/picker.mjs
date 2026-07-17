@@ -15,7 +15,7 @@ const C = {
 // items: [{ label, sublabel }]. Returns an array of selected indices, or [] if
 // cancelled. preselect controls whether rows start checked (default true, since
 // the common case is "reopen all of these").
-export async function multiSelect(items, { title = "Select sessions", preselect = true } = {}) {
+export async function multiSelect(items, { title = "Select sessions", preselect = false } = {}) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     return numberedFallback(items, title);
   }
@@ -32,7 +32,7 @@ export async function multiSelect(items, { title = "Select sessions", preselect 
   const render = () => {
     if (rendered > 0) stdout.write(`\x1b[${rendered}A`); // move cursor back up
     const lines = [];
-    lines.push(`${C.bold}${title}${C.reset}  ${C.dim}(Space toggle, A all, Enter confirm, Esc cancel)${C.reset}`);
+    lines.push(`${C.bold}${title}${C.reset}  ${C.dim}(Space select, A all, Enter open, Esc cancel)${C.reset}`);
     items.forEach((it, i) => {
       const isCursor = i === cursor;
       const box = selected[i] ? `${C.green}◉${C.reset}` : `${C.dim}◯${C.reset}`;
@@ -63,10 +63,12 @@ export async function multiSelect(items, { title = "Select sessions", preselect 
         resolve([]);
         return;
       }
-      // Enter confirms.
+      // Enter confirms. If nothing is checked, open just the cursor's row, so
+      // "arrow to a session and press Enter" opens only that one.
       if (key === "\r" || key === "\n") {
         cleanup();
-        resolve(items.map((_, i) => i).filter((i) => selected[i]));
+        const checked = items.map((_, i) => i).filter((i) => selected[i]);
+        resolve(checked.length > 0 ? checked : [cursor]);
         return;
       }
       // Space toggles current row.

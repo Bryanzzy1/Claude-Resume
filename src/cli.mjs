@@ -26,11 +26,14 @@ import { scanSessions } from "./scan.mjs";
 import { parseDuration, formatDuration } from "./duration.mjs";
 import { multiSelect } from "./picker.mjs";
 
+const DEFAULT_OPEN_MS = 24 * 60 * 60 * 1000; // bare `ars`: last 24h
+const DEFAULT_BROWSE_MS = 7 * 24 * 60 * 60 * 1000; // --list / --pick: last week
+
 function parseArgs(argv) {
-  // Default: reopen sessions active in the last 24 hours, up to 8 directories.
   const opts = {
     limit: 8,
-    sinceMs: 24 * 60 * 60 * 1000,
+    sinceMs: null, // resolved after parsing, based on mode
+    sinceExplicit: false,
     dryRun: false,
     list: false,
     pick: false,
@@ -48,9 +51,20 @@ function parseArgs(argv) {
       const raw = argv[++i];
       const ms = parseDuration(raw);
       if (ms == null) opts.badSince = raw;
-      else opts.sinceMs = ms;
-    } else if (a === "--all-time") opts.sinceMs = Infinity;
-    else if (a === "--help" || a === "-h") opts.help = true;
+      else {
+        opts.sinceMs = ms;
+        opts.sinceExplicit = true;
+      }
+    } else if (a === "--all-time") {
+      opts.sinceMs = Infinity;
+      opts.sinceExplicit = true;
+    } else if (a === "--help" || a === "-h") opts.help = true;
+  }
+  // Browsing (--list/--pick) defaults to a wider week-long window so you can
+  // see more to choose from; opening (bare `ars`) stays at 24h. An explicit
+  // --since or --all-time always wins.
+  if (!opts.sinceExplicit) {
+    opts.sinceMs = opts.list || opts.dryRun || opts.pick ? DEFAULT_BROWSE_MS : DEFAULT_OPEN_MS;
   }
   return opts;
 }
@@ -60,13 +74,16 @@ function printHelp() {
 
 Usage:
   ars                 Reopen sessions active in the last 24h
-  ars --pick          Arrow-key menu to choose which to reopen
+  ars --pick          Arrow-key menu to choose which to reopen (last week)
+  ars --list          Show recent sessions, open nothing (last week)
   ars --since <dur>   Window like 12h, 2d, 90m, 1w (bare number = hours)
   ars --all-time      No age cutoff (every directory)
   ars --limit N       Cap how many directories to restore (default 8)
-  ars --list          Show recent sessions, do not open anything
   ars --dry-run       Print what would open, open nothing
   ars --debug         Keep each tab open with a pause if resume fails
+
+Bare 'ars' looks back 24h; --pick and --list look back a week so you have more
+to choose from. --since or --all-time overrides either.
 
 Each restored session opens as a Windows Terminal tab that runs
 'claude --resume <session-id>' started in that session's own directory.`);
