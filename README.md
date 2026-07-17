@@ -71,12 +71,6 @@ Claude Code writes every conversation to `~/.claude/projects/<encoded-dir>/<sess
 
 Wrapper files hold real paths as literal text and `wt` is handed forward-slash paths, which sidesteps the backslash mangling that breaks a naive `wt ... cmd /k "C:\..."` launch.
 
-## Notes
-
-- Restores Claude Code conversations, not other terminal programs (a dev server, a subshell, etc.).
-- One conversation per directory (the most recent). Two live chats in the same folder reopen only the newer.
-- Paths with spaces are handled correctly.
-
 ## License
 
 MIT
