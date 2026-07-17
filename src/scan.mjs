@@ -31,8 +31,13 @@ function readCwd(file) {
 }
 
 // Return one entry per directory: the most recently modified session in it.
-// Sorted newest-first. limit caps how many directories come back.
-export function scanSessions({ limit = Infinity } = {}) {
+// Sorted newest-first. limit caps how many directories come back. sinceDays
+// drops sessions whose most recent activity is older than that many days (so a
+// reboot only reopens work you were actually in recently); pass 0/Infinity to
+// keep all ages.
+export function scanSessions({ limit = Infinity, sinceDays = Infinity } = {}) {
+  const cutoffMs =
+    sinceDays === Infinity || !sinceDays ? 0 : Date.now() - sinceDays * 24 * 60 * 60 * 1000;
   let projectDirs;
   try {
     projectDirs = readdirSync(PROJECTS_DIR, { withFileTypes: true });
@@ -74,6 +79,7 @@ export function scanSessions({ limit = Infinity } = {}) {
   }
 
   return [...byCwd.values()]
+    .filter((s) => s.mtimeMs >= cutoffMs)
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
     .slice(0, limit);
 }

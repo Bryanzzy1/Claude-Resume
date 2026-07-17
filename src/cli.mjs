@@ -26,13 +26,16 @@ import { fileURLToPath } from "node:url";
 import { scanSessions } from "./scan.mjs";
 
 function parseArgs(argv) {
-  const opts = { limit: 8, dryRun: false, list: false, debug: false };
+  // Default: reopen sessions active in the last 3 days, up to 8 directories.
+  const opts = { limit: 8, sinceDays: 3, dryRun: false, list: false, debug: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--list" || a === "-l") opts.list = true;
     else if (a === "--dry-run" || a === "-n") opts.dryRun = true;
     else if (a === "--debug") opts.debug = true;
     else if (a === "--limit") opts.limit = parseInt(argv[++i], 10) || opts.limit;
+    else if (a === "--since") opts.sinceDays = parseFloat(argv[++i]) || opts.sinceDays;
+    else if (a === "--all-time") opts.sinceDays = Infinity;
     else if (a === "--help" || a === "-h") opts.help = true;
   }
   return opts;
@@ -42,11 +45,13 @@ function printHelp() {
   console.log(`agent-restore - reopen recent Claude Code conversations
 
 Usage:
-  agent-restore [--limit N]     Reopen the N most recent sessions (one per dir)
+  agent-restore                 Reopen sessions active in the last 3 days
+  agent-restore --since N       Change the window to the last N days
+  agent-restore --all-time      No age cutoff (every directory)
+  agent-restore --limit N       Cap how many directories to restore (default 8)
   agent-restore --list          Show recent sessions, do not open anything
   agent-restore --dry-run       Print what would open, open nothing
   agent-restore --debug         Keep each tab open with a pause if resume fails
-  agent-restore --limit N       Cap how many directories to restore (default 8)
 
 Each restored session opens as a Windows Terminal tab that runs
 'claude --resume <session-id>' started in that session's own directory.`);
@@ -144,10 +149,12 @@ function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) return printHelp();
 
-  const sessions = scanSessions({ limit: opts.limit });
+  const sessions = scanSessions({ limit: opts.limit, sinceDays: opts.sinceDays });
 
   if (sessions.length === 0) {
-    console.log("No Claude sessions found under ~/.claude/projects.");
+    const window =
+      opts.sinceDays === Infinity ? "" : ` active in the last ${opts.sinceDays} day(s)`;
+    console.log(`No Claude sessions found${window}. Try --since 7 or --all-time.`);
     return;
   }
 
