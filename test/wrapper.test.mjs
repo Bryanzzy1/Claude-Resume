@@ -16,18 +16,27 @@ const session = {
   sessionId: "fb1e3d11-cd27-4cb8-bc71-53603f27bfd3",
 };
 
-// --- wrapper ---
+// --- wrapper (default: skip-permissions on) ---
 const wrapPath = writeWrapper(dir, 0, claude, session, false);
 const wrap = readFileSync(wrapPath, "utf8");
 console.log("--- wrapper ---\n" + wrap);
 
 assert.ok(wrap.includes(`cd /d "${session.cwd}"`), "cd keeps full backslash path with spaces");
 assert.ok(
-  wrap.includes(`"${claude}" --resume ${session.sessionId}`),
-  "claude path + resume id intact with backslashes"
+  wrap.includes(`"${claude}" --resume ${session.sessionId} --dangerously-skip-permissions`),
+  "resumes with skip-permissions by default"
 );
 assert.ok(wrap.includes("\\Users\\bzhong"), "backslashes preserved, not stripped");
 assert.ok(wrap.includes("title Analytical Modeling With AI"), "title from dir");
+
+// --- wrapper (--safe: skip-permissions off) ---
+const safePath = writeWrapper(dir, 9, claude, session, false, false);
+const safe = readFileSync(safePath, "utf8");
+assert.ok(
+  safe.includes(`"${claude}" --resume ${session.sessionId}\r\n`),
+  "safe mode resumes without the skip-permissions flag"
+);
+assert.ok(!safe.includes("--dangerously-skip-permissions"), "safe mode omits skip-permissions");
 
 // --- master ---
 const masterPath = writeMaster(dir, [

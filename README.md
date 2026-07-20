@@ -57,9 +57,12 @@ ars --list       # show recent sessions, open nothing (last week)
 ars --since 12h  # window as 12h, 2d, 90m, 1w (a bare number means hours)
 ars --all-time   # no age cutoff
 ars --limit 4    # cap how many sessions to show/reopen
+ars --safe       # resume without --dangerously-skip-permissions
 ars --dry-run    # print what would open, open nothing
 ars --debug      # keep each tab open with a pause if resume fails
 ```
+
+Every session resumes with `--dangerously-skip-permissions` so Claude starts without a permission prompt. Pass `--safe` if you want the normal prompt back.
 
 Bare `ars` looks back 24 hours. `--pick` shows your last 10 sessions regardless of age (newest first by last activity), so a chat you started long ago but talked to recently still appears. `--list` looks back a week. An explicit `--since`, `--all-time`, or `--limit` overrides these defaults.
 

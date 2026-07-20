@@ -41,6 +41,7 @@ function parseArgs(argv) {
     list: false,
     pick: false,
     debug: false,
+    skipPermissions: true, // resume with --dangerously-skip-permissions
     badSince: null,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -49,6 +50,7 @@ function parseArgs(argv) {
     else if (a === "--pick" || a === "-p") opts.pick = true;
     else if (a === "--dry-run" || a === "-n") opts.dryRun = true;
     else if (a === "--debug") opts.debug = true;
+    else if (a === "--safe") opts.skipPermissions = false;
     else if (a === "--limit") {
       const n = parseInt(argv[++i], 10);
       if (n > 0) {
@@ -92,6 +94,7 @@ Usage:
   ars --since <dur>   Window like 12h, 2d, 90m, 1w (bare number = hours)
   ars --all-time      No age cutoff (every directory)
   ars --limit N       Cap how many sessions to show/restore
+  ars --safe          Resume without --dangerously-skip-permissions
   ars --dry-run       Print what would open, open nothing
   ars --debug         Keep each tab open with a pause if resume fails
 
@@ -99,7 +102,8 @@ Bare 'ars' looks back 24h. --pick shows your last 10 sessions (any age, newest
 first). --list looks back a week. --since / --all-time / --limit override.
 
 Each restored session opens as a Windows Terminal tab that runs
-'claude --resume <session-id>' started in that session's own directory.`);
+'claude --resume <session-id> --dangerously-skip-permissions' in that session's
+own directory. Pass --safe to drop the skip-permissions flag.`);
 }
 
 function relTime(ms) {
@@ -130,13 +134,16 @@ function resolveClaude() {
 
 // Write a wrapper .cmd for one session. Its body is literal text: backslashes
 // need no escaping inside a file. Returns the (space-free) wrapper path.
-export function writeWrapper(dir, index, claude, session, debug) {
+// skipPermissions adds --dangerously-skip-permissions so the resumed session
+// starts without a permission prompt (on by default; --safe turns it off).
+export function writeWrapper(dir, index, claude, session, debug, skipPermissions = true) {
   const file = join(dir, `restore-${index}.cmd`);
+  const flags = `--resume ${session.sessionId}${skipPermissions ? " --dangerously-skip-permissions" : ""}`;
   const lines = [
     "@echo off",
     `cd /d "${session.cwd}"`,
     `title ${shortTitle(session.cwd)}`,
-    `"${claude}" --resume ${session.sessionId}`,
+    `"${claude}" ${flags}`,
   ];
   if (debug) {
     lines.push(
@@ -191,13 +198,13 @@ export function writeMaster(dir, wrappers) {
 }
 
 // Open the given sessions, one Windows Terminal tab each, auto-resumed.
-function launch(sessions, debug) {
+function launch(sessions, debug, skipPermissions) {
   const claude = resolveClaude();
   const wrapDir = join(tmpdir(), "agent-restore");
   mkdirSync(wrapDir, { recursive: true });
 
   const wrappers = sessions.map((s, i) => ({
-    path: writeWrapper(wrapDir, i, claude, s, debug),
+    path: writeWrapper(wrapDir, i, claude, s, debug, skipPermissions),
     title: shortTitle(s.cwd),
   }));
 
@@ -250,10 +257,11 @@ async function main() {
   }
 
   if (opts.list || opts.dryRun) {
+    const perm = opts.skipPermissions ? " --dangerously-skip-permissions" : "";
     console.log(`Recent sessions (${sessions.length}):\n`);
     for (const s of sessions) {
       console.log(`  ${relTime(s.mtimeMs).padEnd(8)}  ${s.cwd}`);
-      console.log(`            claude --resume ${s.sessionId}`);
+      console.log(`            claude --resume ${s.sessionId}${perm}`);
     }
     if (opts.dryRun) console.log("\n(dry run: nothing was opened)");
     return;
@@ -265,10 +273,10 @@ async function main() {
       console.log("Nothing selected.");
       return;
     }
-    return launch(chosen, opts.debug);
+    return launch(chosen, opts.debug, opts.skipPermissions);
   }
 
-  launch(sessions, opts.debug);
+  launch(sessions, opts.debug, opts.skipPermissions);
 }
 
 // Run as a CLI unless imported by a test. A full-path compare of
