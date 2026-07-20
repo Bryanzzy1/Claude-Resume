@@ -52,16 +52,16 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 
 ```sh
 ars              # reopen sessions active in the last 24h
-ars --pick       # arrow-key menu to choose which to reopen (last week)
+ars --pick       # arrow-key menu of your last 10 sessions to choose from
 ars --list       # show recent sessions, open nothing (last week)
 ars --since 12h  # window as 12h, 2d, 90m, 1w (a bare number means hours)
 ars --all-time   # no age cutoff
-ars --limit 4    # cap how many directories to reopen (default 8)
+ars --limit 4    # cap how many sessions to show/reopen
 ars --dry-run    # print what would open, open nothing
 ars --debug      # keep each tab open with a pause if resume fails
 ```
 
-Bare `ars` looks back 24 hours. `--pick` and `--list` look back a week so you have more to choose from. An explicit `--since` or `--all-time` overrides either.
+Bare `ars` looks back 24 hours. `--pick` shows your last 10 sessions regardless of age (newest first by last activity), so a chat you started long ago but talked to recently still appears. `--list` looks back a week. An explicit `--since`, `--all-time`, or `--limit` overrides these defaults.
 
 In the `--pick` menu: Up/Down move, Space selects a session, A selects all, Enter opens the selected ones (or just the highlighted row if none are checked), Esc cancels.
 

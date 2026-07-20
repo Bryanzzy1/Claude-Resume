@@ -27,11 +27,14 @@ import { parseDuration, formatDuration } from "./duration.mjs";
 import { multiSelect } from "./picker.mjs";
 
 const DEFAULT_OPEN_MS = 24 * 60 * 60 * 1000; // bare `ars`: last 24h
-const DEFAULT_BROWSE_MS = 7 * 24 * 60 * 60 * 1000; // --list / --pick: last week
+const DEFAULT_BROWSE_MS = 7 * 24 * 60 * 60 * 1000; // --list: last week
+const DEFAULT_OPEN_LIMIT = 8; // bare `ars` / --list
+const DEFAULT_PICK_LIMIT = 10; // --pick: last 10 sessions to choose from
 
 function parseArgs(argv) {
   const opts = {
-    limit: 8,
+    limit: null, // resolved after parsing, based on mode
+    limitExplicit: false,
     sinceMs: null, // resolved after parsing, based on mode
     sinceExplicit: false,
     dryRun: false,
@@ -46,8 +49,13 @@ function parseArgs(argv) {
     else if (a === "--pick" || a === "-p") opts.pick = true;
     else if (a === "--dry-run" || a === "-n") opts.dryRun = true;
     else if (a === "--debug") opts.debug = true;
-    else if (a === "--limit") opts.limit = parseInt(argv[++i], 10) || opts.limit;
-    else if (a === "--since") {
+    else if (a === "--limit") {
+      const n = parseInt(argv[++i], 10);
+      if (n > 0) {
+        opts.limit = n;
+        opts.limitExplicit = true;
+      }
+    } else if (a === "--since") {
       const raw = argv[++i];
       const ms = parseDuration(raw);
       if (ms == null) opts.badSince = raw;
@@ -60,11 +68,16 @@ function parseArgs(argv) {
       opts.sinceExplicit = true;
     } else if (a === "--help" || a === "-h") opts.help = true;
   }
-  // Browsing (--list/--pick) defaults to a wider week-long window so you can
-  // see more to choose from; opening (bare `ars`) stays at 24h. An explicit
-  // --since or --all-time always wins.
+  // --pick shows the last 10 sessions by last-modified with no age cutoff, so a
+  // chat started long ago but touched recently still appears. --list looks back
+  // a week; bare `ars` opens the last 24h. Explicit --since / --all-time /
+  // --limit always win.
   if (!opts.sinceExplicit) {
-    opts.sinceMs = opts.list || opts.dryRun || opts.pick ? DEFAULT_BROWSE_MS : DEFAULT_OPEN_MS;
+    if (opts.pick) opts.sinceMs = Infinity;
+    else opts.sinceMs = opts.list || opts.dryRun ? DEFAULT_BROWSE_MS : DEFAULT_OPEN_MS;
+  }
+  if (!opts.limitExplicit) {
+    opts.limit = opts.pick ? DEFAULT_PICK_LIMIT : DEFAULT_OPEN_LIMIT;
   }
   return opts;
 }
@@ -74,16 +87,16 @@ function printHelp() {
 
 Usage:
   ars                 Reopen sessions active in the last 24h
-  ars --pick          Arrow-key menu to choose which to reopen (last week)
+  ars --pick          Arrow-key menu of your last 10 sessions to choose from
   ars --list          Show recent sessions, open nothing (last week)
   ars --since <dur>   Window like 12h, 2d, 90m, 1w (bare number = hours)
   ars --all-time      No age cutoff (every directory)
-  ars --limit N       Cap how many directories to restore (default 8)
+  ars --limit N       Cap how many sessions to show/restore
   ars --dry-run       Print what would open, open nothing
   ars --debug         Keep each tab open with a pause if resume fails
 
-Bare 'ars' looks back 24h. --pick and --list look back a week so you have more
-to choose from. --since or --all-time overrides either.
+Bare 'ars' looks back 24h. --pick shows your last 10 sessions (any age, newest
+first). --list looks back a week. --since / --all-time / --limit override.
 
 Each restored session opens as a Windows Terminal tab that runs
 'claude --resume <session-id>' started in that session's own directory.`);
