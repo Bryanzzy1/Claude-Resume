@@ -12,6 +12,36 @@ const C = {
   invert: "\x1b[7m",
 };
 
+// Visible length of a string, ignoring ANSI color escapes.
+export function visibleLen(s) {
+  return s.replace(/\x1b\[[0-9;]*m/g, "").length;
+}
+
+// Truncate a string to maxVisible columns without cutting an ANSI escape,
+// appending a reset so color never bleeds. Lines are truncated (not wrapped)
+// so each logical line stays exactly one physical row, which keeps the
+// cursor-up redraw count correct.
+export function truncateVisible(s, maxVisible) {
+  if (maxVisible <= 0) return "";
+  let out = "";
+  let vis = 0;
+  for (let i = 0; i < s.length; ) {
+    if (s[i] === "\x1b") {
+      const m = /^\x1b\[[0-9;]*m/.exec(s.slice(i));
+      if (m) {
+        out += m[0];
+        i += m[0].length;
+        continue;
+      }
+    }
+    if (vis >= maxVisible) return out + C.reset;
+    out += s[i];
+    vis++;
+    i++;
+  }
+  return out;
+}
+
 // items: [{ label, sublabel }]. Returns an array of selected indices, or [] if
 // cancelled. preselect controls whether rows start checked (default true, since
 // the common case is "reopen all of these").
@@ -30,7 +60,11 @@ export async function multiSelect(items, { title = "Select sessions", preselect 
 
   let rendered = 0;
   const render = () => {
-    if (rendered > 0) stdout.write(`\x1b[${rendered}A`); // move cursor back up
+    // Cap line width to the terminal so nothing wraps to a second physical row
+    // (wrapping would desync the cursor-up count and stack the header).
+    const width = (stdout.columns || 80) - 1;
+
+    if (rendered > 0) stdout.write(`\x1b[${rendered}A`); // move to the first row
     const lines = [];
     lines.push(`${C.bold}${title}${C.reset}  ${C.dim}(Space select, A all, Enter open, Esc cancel)${C.reset}`);
     items.forEach((it, i) => {
@@ -41,10 +75,10 @@ export async function multiSelect(items, { title = "Select sessions", preselect 
       const sub = it.sublabel ? `  ${C.dim}${it.sublabel}${C.reset}` : "";
       lines.push(`${pointer} ${box} ${label}${sub}`);
     });
-    // Clear each line to end before writing, so shorter redraws do not leave
-    // stale characters behind.
-    stdout.write(lines.map((l) => `\x1b[2K${l}`).join("\n") + "\n");
-    rendered = lines.length;
+    // Clear each line, truncate to one physical row, and clear anything below.
+    const body = lines.map((l) => `\r\x1b[2K${truncateVisible(l, width)}`).join("\n");
+    stdout.write(body + "\x1b[0J");
+    rendered = lines.length - 1; // rows below the first line we can move back up
   };
 
   render();
